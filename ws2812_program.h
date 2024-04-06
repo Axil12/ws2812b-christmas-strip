@@ -106,4 +106,27 @@ class TriColorPerlinProgram: public WS2812Program {
       WS2812Program(speed), scale(scale), hue_1(hue_1), hue_2(hue_2), hue_3(hue_3), sat_1(sat_1), sat_2(sat_2), sat_3(sat_3) {};
     void iterate(Adafruit_NeoPixel &strip, float time);
 };
+
+class RainbowTwinkleProgram: public WS2812Program {
+  private:
+    uint8_t generation_attemps_per_frame = 3;
+    uint8_t new_star_probability = 20;  //Percentage
+  public:
+    RainbowTwinkleProgram(uint8_t generation_attemps_per_frame, uint8_t new_star_probability) :
+      WS2812Program(0), generation_attemps_per_frame(generation_attemps_per_frame), new_star_probability(new_star_probability) {};
+    void iterate(Adafruit_NeoPixel &strip, float time);
+};
+
+class CometsProgram: public WS2812Program { // Inspired by https://github.com/davepl/DavesGarageLEDSeries/blob/master/LED%20Episode%2006/src/comet.h
+  private:
+    const uint8_t comet_size[3] = {5, 4, 3};
+    int direction[3] = {1, 1, 1};
+    float position[3] = {0, 20, 40};
+    float speed_multiplier[3] = {1.0f, 1.1f, 1.2f};
+    uint8_t n_comets;
+    const float fade_factor = 0.75f;
+  public:
+    CometsProgram(float speed, uint8_t n_comets) : WS2812Program(speed), n_comets(n_comets) {};
+    void iterate(Adafruit_NeoPixel &strip, float time);
+};
 #endif

@@ -127,17 +127,15 @@ void ChristmasTreeProgram::iterate(Adafruit_NeoPixel &strip, float time) {
 }
 
 void BiColorPerlinProgram::iterate(Adafruit_NeoPixel &strip, float time) {
-  float intensity;
+  float value;
+  uint32_t color;
   for (int x = 0; x < strip.numPixels(); x++) {
-    intensity = SimplexNoise::noise(x/this->scale, time * this->speed);  // Is between -1 and 1
-    if (intensity > 0) {
-      //intensity = max(intensity * intensity, 0.025f);
-      strip.setPixelColor(x, strip.ColorHSV(this->hue_1, this->sat_1, (uint8_t)(intensity * 255)));
-    }
-    else {
-      //intensity = max(intensity * intensity, 0.025f);
-      strip.setPixelColor(x, strip.ColorHSV(this->hue_2, this->sat_2, (uint8_t)(-intensity * 255)));
-    }
+    value = SimplexNoise::noise(x/this->scale, time * this->speed);  // Is between -1 and 1
+    if (value > 0)
+      color = strip.ColorHSV(this->hue_1, this->sat_1, (uint8_t)(value * value * 255));
+    else
+      color = strip.ColorHSV(this->hue_2, this->sat_2, (uint8_t)(value * value * 255));
+    strip.setPixelColor(x, color);
   } 
 }
 
@@ -150,16 +148,61 @@ void TriColorPerlinProgram::iterate(Adafruit_NeoPixel &strip, float time) {
       color = interpolateColors888(
         strip.ColorHSV(this->hue_2, this->sat_2, 255),
         strip.ColorHSV(this->hue_1, this->sat_1, 255),
-        min(1.5f * value, 1)
+        min(1.5*pow(value, .33f), 1) //min(1.5f * value, 1)
       );
     }
     else {
       color = interpolateColors888(
         strip.ColorHSV(this->hue_2, this->sat_2, 255),
         strip.ColorHSV(this->hue_3, this->sat_3, 255),
-        min(-1.5f * value, 1)
+        min(1.5*pow(-value, .33f), 1) //min(-1.5f * value, 1)
       );
     }
     strip.setPixelColor(x, color);
   } 
+}
+
+void RainbowTwinkleProgram::iterate(Adafruit_NeoPixel &strip, float time) {
+  uint32_t color;
+  for (int x = 0; x < strip.numPixels(); x++) {
+    color = strip.getPixelColor(x);
+    if (((color & 0xff0000) >> 16 < 1) && ((color & 0x00ff00) >> 8 < 1) && ((color & 0x0000ff) < 1))
+      strip.setPixelColor(x, 0);
+    else
+      strip.setPixelColor(x, fadeColor(color, 0.99));
+  }
+
+  for (int i = 0; i < this->generation_attemps_per_frame; i++) {  // Creating new stars
+    if ((rand() % 100) < this->new_star_probability) {
+      uint8_t index = rand() % strip.numPixels();
+      if (strip.getPixelColor(index) == 0)
+        strip.setPixelColor(index, strip.ColorHSV(rand() % 65535, 255, 55 + rand() % 200));
+    }
+  }
+}
+
+void CometsProgram::iterate(Adafruit_NeoPixel &strip, float time) {
+  uint16_t hue = (uint16_t)fmod(20000 * time * speed, 65535);
+
+  for (int i = 0; i < this->n_comets; i++) {
+    this->position[i] += this->direction[i] * this->speed_multiplier[i] * (this->speed + (rand() % 100) / 100.0f);
+    if (this->position[i] > strip.numPixels() - this->comet_size[i]) {
+      this->direction[i] *= -1;
+      this->position[i] = strip.numPixels() - this->comet_size[i];
+    }
+    else if (this->position[i] < 0) {
+      this->direction[i] *= -1;
+      this->position[i] = 0;
+    }
+
+    for (int j = 0; j < this->comet_size[i]; j++)
+      strip.setPixelColor(
+        (int)this->position[i] + j,
+        strip.ColorHSV(hue, 255, 255)
+        );
+
+    for (int j = 0; j < strip.numPixels(); j++)
+      if (rand() % 3 == 1)
+        strip.setPixelColor(j, fadeColor(strip.getPixelColor(j), this->fade_factor));
+  }
 }

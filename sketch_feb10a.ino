@@ -13,7 +13,7 @@
 #endif
 
 
-#define NUMBER_OF_PROGRAMS 8
+#define NUMBER_OF_PROGRAMS 10
 #define FRAMERATE 31  // Frames per second
 #define VOLTAGE 5  // Volts
 #define CURRENT_DRAW_PER_CHANNEL 0.020  // Amperes
@@ -54,35 +54,39 @@ DiffuseSparklingProgram silver_diffuse_sparkling_prog = DiffuseSparklingProgram(
 ChristmasTreeProgram christmas_tree_prog = ChristmasTreeProgram(1.0f);
 BiColorPerlinProgram bi_color_perlin_prog = BiColorPerlinProgram(0.25f, 10.0f, 21845, 0, 255, 255);
 TriColorPerlinProgram tri_color_perlin_prog = TriColorPerlinProgram(0.25f, 20.0f, 21845, 65535, 0, 255, 0, 255);
+RainbowTwinkleProgram rainbow_twinkle_prog = RainbowTwinkleProgram(3, 50);
+CometsProgram comets_prog = CometsProgram(0.01f, 3);
 
 // setup() function -- runs once at startup --------------------------------
 void setup() {
   randomSeed(micros() + analogRead(LED_PIN));
-  t += random(10000);
-  t = 140;
+  t += random(3600);
 
   programs[0] = &rainbow_wave_prog;
   programs[1] = &spectral_prog;
-  programs[2] = &silver_diffuse_sparkling_prog;
+  programs[2] = &yellow_static_prog;
   programs[3] = &gold_diffuse_sparkling_prog;
-  programs[4] = &yellow_static_prog;
+  programs[4] = &silver_diffuse_sparkling_prog;
   programs[5] = &christmas_tree_prog;
   programs[6] = &bi_color_perlin_prog;
   programs[7] = &tri_color_perlin_prog;
+  programs[8] = &rainbow_twinkle_prog;
+  programs[9] = &comets_prog;
 
   AppConfig* config = loadConfig();
   brightness = config->brightness;
   selected_program = config->selected_program;
-  brightness = max(0, min(1, brightness));
+  brightness = max(0.1f, min(1, brightness));
   selected_program = max(0, min(NUMBER_OF_PROGRAMS - 1, selected_program));
 
   strip.begin();
   strip.setBrightness(255);
 
   // Colorwipe animation to act as boot up animation
-  for(int i = 0; i<strip.numPixels(); i++) {
-    strip.setPixelColor(i, strip.Color(0, 140, 255));//  GRB
+  for (int i = 0; i < strip.numPixels(); i++) {
+    strip.setPixelColor(i, 0, 140, 255); //  GRB
     strip.show();
+    strip.setPixelColor(i, 0);
     delay(25);
   }
   delay(500);
@@ -106,9 +110,14 @@ void loop() {
   t2 = millis();
   while (timestep * 1000 - (t2 - t0) > 0){
     button.loop();
-    if (button.isPressed() && button_has_been_released) {
+    if (button.isPressed() && button_has_been_released && (t - time_of_last_encoder_use) > 0.30f) {
       button_has_been_released = false;
       is_selecting_program = !is_selecting_program;
+      time_of_last_encoder_use = t;
+      strip.setPixelColor(0, 0, 140, 255);
+      strip.setPixelColor(1, 0, 140, 255);
+      strip.setPixelColor(2, 0, 140, 255);
+      strip.show();
     }
     if (!button.isPressed()) {
       button_has_been_released = true;
@@ -118,16 +127,16 @@ void loop() {
     rotary_encoder_direction = rotary_encoder.getDirection();
     if (
       rotary_encoder_direction != RotaryEncoder::Direction::NOROTATION
-      && (t - time_of_last_encoder_use) > 0.10f
+      && (t - time_of_last_encoder_use) > 0.05f
       ) {
       if (is_selecting_program) {
         strip.fill(0);
         switch (rotary_encoder_direction) {
           case RotaryEncoder::Direction::CLOCKWISE:
-            selected_program += 1;
+            selected_program -= 1;
             break;
           case RotaryEncoder::Direction::COUNTERCLOCKWISE:
-            selected_program -= 1;
+            selected_program += 1;
             break;
         }
         selected_program = (selected_program + NUMBER_OF_PROGRAMS) % NUMBER_OF_PROGRAMS;
@@ -164,6 +173,10 @@ void loop() {
   Serial.print(1000.0 / (millis() - t0)); Serial.print(" fps | ");
   Serial.print("Brightness : "); Serial.print(brightness); Serial.print(" | ");
   Serial.print("Program n° : "); Serial.print(selected_program); Serial.print(" | ");
+  if (is_selecting_program)
+    Serial.print("Mode : program selection | ");
+  else
+    Serial.print("Mode : brightness selection | ");
   Serial.println("");
 
   t += timestep;
